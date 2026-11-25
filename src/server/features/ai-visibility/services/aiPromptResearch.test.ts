@@ -33,6 +33,7 @@ vi.mock("ai", () => ({
 }));
 vi.mock("@/server/lib/openrouter", () => ({
   buildResearchModel: vi.fn(),
+  getResearchMaxOutputTokens: (defaultTokens: number) => defaultTokens,
   requireOpenRouterAccess: async () => ({ apiKey: "key" }),
 }));
 vi.mock("@/server/lib/chatAgent", () => ({

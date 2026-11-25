@@ -80,14 +80,29 @@ export function buildSamChatModel(
 }
 
 export function getSamMaxOutputTokens(env: object): number | undefined {
-  const value = getEnvValueSync(env, "OPENROUTER_SAM_MAX_TOKENS");
-  if (value === undefined) return 16_000;
+  const name = "OPENROUTER_SAM_MAX_TOKENS";
+  return parseMaxOutputTokens(name, getEnvValueSync(env, name), 16_000);
+}
+
+export async function getResearchMaxOutputTokens(defaultTokens: number) {
+  const name = "OPENROUTER_RESEARCH_MAX_TOKENS";
+  return parseMaxOutputTokens(
+    name,
+    await getOptionalEnvValue(name),
+    defaultTokens,
+  );
+}
+
+function parseMaxOutputTokens(
+  name: string,
+  value: string | undefined,
+  defaultTokens: number,
+) {
+  if (value === undefined) return defaultTokens;
   if (value === "none") return undefined;
   const tokens = Number(value);
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(tokens) || tokens < 1) {
-    throw new Error(
-      "OPENROUTER_SAM_MAX_TOKENS must be a positive integer or none",
-    );
+    throw new Error(`${name} must be a positive integer or none`);
   }
   return tokens;
 }
