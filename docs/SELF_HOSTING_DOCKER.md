@@ -67,6 +67,10 @@ docker compose up -d --force-recreate init web crawl-gateway
 | `OPENROUTER_API_KEY`                       | SAM conversations, website research and summaries                                                                          |
 | `OPENROUTER_BASE_URL`                      | Optional base URL of another OpenAI-compatible server (vLLM, LiteLLM, Ollama); set `OPENROUTER_MODEL` to a model it serves |
 | `OPENROUTER_MODEL`                         | Optional model override                                                                                                    |
+| `OPENROUTER_SAM_REASONING_EFFORT`          | SAM chat's `reasoning.effort` (default `max`). Compaction uses `low`.                                                      |
+| `OPENROUTER_RESEARCH_REASONING_EFFORT`     | `reasoning.effort` for website research, prompt research and prompt suggestions (default `low`).                           |
+| `OPENROUTER_SAM_MAX_TOKENS`                | Per-step `max_tokens` for SAM chat. Set a positive integer (default `16000`) or `none` to let the endpoint choose.         |
+| `OPENROUTER_CACHE_CONTROL`                 | Set `cache_control` on every model request with `ephemeral` (default TTL) or `ephemeral-1h` (one hour). Empty omits it.    |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Search Console and Analytics linking with your own Google OAuth app                                               |
 | `CONTEXT_API_KEY`                          | Optional JavaScript rendering for site audits                                                                              |
 | `CONTEXT_BASE_URL`                         | Optional base URL for calls using `CONTEXT_API_KEY` (default `https://api.context.dev`)                                    |

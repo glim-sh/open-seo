@@ -7,7 +7,11 @@ import {
 import { wrapLanguageModel } from "ai";
 import { isEveryAppAuthMode } from "@/lib/auth-mode";
 import { gatewayCallFor } from "@/server/lib/gateway-attribution";
-import { getEnvValueSync, getWorkersEnv } from "@/server/lib/runtime-env";
+import {
+  getEnvValueSync,
+  getOptionalEnvValue,
+  getWorkersEnv,
+} from "@/server/lib/runtime-env";
 
 /**
  * How a deployment reaches OpenRouter: with its own key, or behind an Every
@@ -68,7 +72,33 @@ export function buildSamChatModel(
   return buildChatAgentModel(
     access,
     getEnvValueSync(env, "OPENROUTER_MODEL"),
-    reasoningEffort,
+    reasoningEffort === "max"
+      ? (getEnvValueSync(env, "OPENROUTER_SAM_REASONING_EFFORT") ?? "max")
+      : reasoningEffort,
+    getEnvValueSync(env, "OPENROUTER_CACHE_CONTROL"),
+  );
+}
+
+export function getSamMaxOutputTokens(env: object): number | undefined {
+  const value = getEnvValueSync(env, "OPENROUTER_SAM_MAX_TOKENS");
+  if (value === undefined) return 16_000;
+  if (value === "none") return undefined;
+  const tokens = Number(value);
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(tokens) || tokens < 1) {
+    throw new Error(
+      "OPENROUTER_SAM_MAX_TOKENS must be a positive integer or none",
+    );
+  }
+  return tokens;
+}
+
+export async function buildResearchModel(access: OpenRouterAccess) {
+  return buildChatAgentModel(
+    access,
+    await getOptionalEnvValue("OPENROUTER_MODEL"),
+    (await getOptionalEnvValue("OPENROUTER_RESEARCH_REASONING_EFFORT")) ??
+      "low",
+    await getOptionalEnvValue("OPENROUTER_CACHE_CONTROL"),
   );
 }
 
@@ -137,10 +167,11 @@ async function openAiBlockedHere(): Promise<boolean> {
  * Sync on purpose: Think's `getModel()` hook is sync and runs on every turn,
  * so the SAM agent reads its access/model from its DO env and builds here.
  */
-export function buildChatAgentModel(
+function buildChatAgentModel(
   access: OpenRouterAccess,
-  modelId?: string,
-  reasoningEffort: "max" | "low" = "max",
+  modelId: string | undefined,
+  reasoningEffort: string,
+  cacheControl: string | undefined,
 ): LanguageModelV3 {
   const model = modelId ?? DEFAULT_CHAT_AGENT_MODEL;
   const openrouter =
@@ -151,14 +182,20 @@ export function buildChatAgentModel(
           baseURL: GATEWAY_BASE_URL,
           fetch: access.gatewayFetch,
         });
-  const primary = openRouterModel(openrouter, model, reasoningEffort);
+  const cache = cacheDirective(cacheControl);
+  const primary = openRouterModel(openrouter, model, reasoningEffort, cache);
   // The MiniMax fallback is an OpenRouter slug; another provider may not have it.
   if (!model.startsWith("openai/") || ("apiKey" in access && access.baseURL)) {
     return primary;
   }
   // Where OpenRouter would reject OpenAI, pick MiniMax M3 before the request.
   // The country lookup is async and getModel() is sync, so it runs per call.
-  const fallback = openRouterModel(openrouter, MINIMAX_M3, reasoningEffort);
+  const fallback = openRouterModel(
+    openrouter,
+    MINIMAX_M3,
+    reasoningEffort,
+    cache,
+  );
   const pick = async () => ((await openAiBlockedHere()) ? fallback : primary);
   return wrapLanguageModel({
     model: primary,
@@ -170,11 +207,21 @@ export function buildChatAgentModel(
   });
 }
 
+function cacheDirective(value: string | undefined) {
+  if (value === undefined) return undefined;
+  if (value === "ephemeral") return { type: "ephemeral" } as const;
+  if (value === "ephemeral-1h")
+    return { type: "ephemeral", ttl: "1h" } as const;
+  throw new Error("OPENROUTER_CACHE_CONTROL must be ephemeral or ephemeral-1h");
+}
+
 function openRouterModel(
   openrouter: OpenRouterProvider,
   model: string,
-  reasoningEffort: "max" | "low",
+  reasoningEffort: string,
+  cache: ReturnType<typeof cacheDirective>,
 ): LanguageModelV3 {
+  const settings = { usage: { include: true }, cache_control: cache };
   // MiniMax M3 (env override or OpenAI fallback): `provider.order` prefers
   // Together, then Atlas Cloud (fp8); `zdr: true` restricts routing to Zero-Data-
   // Retention endpoints, which excludes MiniMax first-party — the account's
@@ -185,7 +232,7 @@ function openRouterModel(
   // `<think>` trace out of the visible answer text.
   if (model === MINIMAX_M3) {
     return openrouter(model, {
-      usage: { include: true },
+      ...settings,
       reasoning: { effort: reasoningEffort === "low" ? "low" : "medium" },
       provider: {
         order: ["together", "atlas-cloud/fp8"],
@@ -196,7 +243,7 @@ function openRouterModel(
   }
 
   return openrouter(model, {
-    usage: { include: true },
+    ...settings,
     extraBody: { reasoning: { effort: reasoningEffort } },
   });
 }

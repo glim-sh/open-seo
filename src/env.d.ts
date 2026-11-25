@@ -143,6 +143,10 @@ declare namespace Cloudflare {
     OPENROUTER_BASE_URL?: string;
     // Optional OpenRouter model slug override (defaults in openrouter.ts).
     OPENROUTER_MODEL?: string;
+    OPENROUTER_SAM_REASONING_EFFORT?: string;
+    OPENROUTER_RESEARCH_REASONING_EFFORT?: string;
+    OPENROUTER_SAM_MAX_TOKENS?: string;
+    OPENROUTER_CACHE_CONTROL?: string;
   }
 }
 

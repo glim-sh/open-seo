@@ -32,7 +32,7 @@ vi.mock("ai", () => ({
   Output: { object: (value: unknown) => value },
 }));
 vi.mock("@/server/lib/openrouter", () => ({
-  buildChatAgentModel: vi.fn(),
+  buildResearchModel: vi.fn(),
   requireOpenRouterAccess: async () => ({ apiKey: "key" }),
 }));
 vi.mock("@/server/lib/chatAgent", () => ({

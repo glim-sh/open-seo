@@ -17,10 +17,9 @@ import { DataforseoChargedTaskError } from "@/server/lib/dataforseo/envelope";
 import { normalizeBacklinksTarget } from "@/server/lib/dataforseoBacklinksTarget";
 import { AppError } from "@/server/lib/errors";
 import {
-  buildChatAgentModel,
+  buildResearchModel,
   requireOpenRouterAccess,
 } from "@/server/lib/openrouter";
-import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { readSite } from "@/server/lib/scrape";
 import {
   CONTEXT_USD_PER_CREDIT,
@@ -201,11 +200,7 @@ export async function researchWebsite(
       searchOutage = false;
       sources.clear();
       return generateText({
-        model: buildChatAgentModel(
-          await requireOpenRouterAccess(),
-          await getOptionalEnvValue("OPENROUTER_MODEL"),
-          "low",
-        ),
+        model: await buildResearchModel(await requireOpenRouterAccess()),
         output: Output.object({
           schema: outputSchema,
         }),
