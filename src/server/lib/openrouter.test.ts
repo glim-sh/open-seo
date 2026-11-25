@@ -5,6 +5,7 @@ import {
   buildSamChatModel,
   buildResearchModel,
   getSamMaxOutputTokens,
+  getResearchMaxOutputTokens,
 } from "./openrouter";
 
 afterEach(() => vi.unstubAllEnvs());
@@ -177,3 +178,31 @@ it.each([
     });
   },
 );
+
+it.each([
+  ["", 4000],
+  ["512", 512],
+  ["none", undefined],
+])(
+  "applies research token setting %j to the request",
+  async (setting, expected) => {
+    vi.stubEnv("OPENROUTER_RESEARCH_MAX_TOKENS", setting);
+    const mock = captureCompletion();
+    await generateText({
+      model: await buildResearchModel({
+        apiKey: "test",
+        baseURL: stubAccess.OPENROUTER_BASE_URL,
+      }),
+      maxOutputTokens: await getResearchMaxOutputTokens(4000),
+      prompt: "hi",
+    });
+    expect(requestBody(mock).max_tokens).toBe(expected);
+  },
+);
+
+it("names the research setting when its cap is invalid", async () => {
+  vi.stubEnv("OPENROUTER_RESEARCH_MAX_TOKENS", "0");
+  await expect(getResearchMaxOutputTokens(4000)).rejects.toThrow(
+    "OPENROUTER_RESEARCH_MAX_TOKENS",
+  );
+});

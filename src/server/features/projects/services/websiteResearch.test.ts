@@ -40,6 +40,7 @@ vi.mock("@/server/lib/runtime-env", () => ({
 }));
 vi.mock("@/server/lib/openrouter", () => ({
   buildResearchModel: vi.fn(),
+  getResearchMaxOutputTokens: (defaultTokens: number) => defaultTokens,
   requireOpenRouterAccess: vi.fn(async () => ({ apiKey: "test-key" })),
 }));
 vi.mock("@/server/lib/chatAgent", () => ({
