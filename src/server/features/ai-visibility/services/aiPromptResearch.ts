@@ -18,12 +18,11 @@ import {
   createDataforseoClient,
 } from "@/server/lib/dataforseo";
 import {
-  buildChatAgentModel,
+  buildResearchModel,
   requireOpenRouterAccess,
   type OpenRouterAccess,
 } from "@/server/lib/openrouter";
 import { buildCacheKey, getCached, setCached } from "@/server/lib/r2-cache";
-import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { normalizeAiSuggestion } from "@/shared/ai-prompt-suggestions";
 import {
   AI_DEFAULT_TOPIC,
@@ -292,11 +291,7 @@ async function relevantQuestions(
   if (cached.success) return new Set(cached.data);
 
   const result = await generateText({
-    model: buildChatAgentModel(
-      input.openRouter,
-      await getOptionalEnvValue("OPENROUTER_MODEL"),
-      "low",
-    ),
+    model: await buildResearchModel(input.openRouter),
     output: Output.object({ schema: relevanceOutputSchema }),
     maxOutputTokens: 4000,
     abortSignal: AbortSignal.timeout(60_000),

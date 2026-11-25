@@ -10,10 +10,9 @@ import {
 } from "@/server/billing/researchSpend";
 import { requireOpenRouterCostUsd } from "@/server/lib/chatAgent";
 import {
-  buildChatAgentModel,
+  buildResearchModel,
   requireOpenRouterAccess,
 } from "@/server/lib/openrouter";
-import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { AppError } from "@/server/lib/errors";
 import {
   normalizeAiSuggestion,
@@ -68,11 +67,7 @@ export async function generateAiPrompts(
     "You need usage credits to generate prompts.",
     async () =>
       generateText({
-        model: buildChatAgentModel(
-          await requireOpenRouterAccess(),
-          await getOptionalEnvValue("OPENROUTER_MODEL"),
-          "low",
-        ),
+        model: await buildResearchModel(await requireOpenRouterAccess()),
         output: Output.object({ schema: generatedAiTopicSchema }),
         maxOutputTokens: 2000,
         abortSignal: AbortSignal.timeout(60_000),

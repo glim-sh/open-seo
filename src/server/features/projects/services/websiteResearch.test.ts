@@ -39,7 +39,7 @@ vi.mock("@/server/lib/runtime-env", () => ({
   getOptionalEnvValue: vi.fn(),
 }));
 vi.mock("@/server/lib/openrouter", () => ({
-  buildChatAgentModel: vi.fn(),
+  buildResearchModel: vi.fn(),
   requireOpenRouterAccess: vi.fn(async () => ({ apiKey: "test-key" })),
 }));
 vi.mock("@/server/lib/chatAgent", () => ({

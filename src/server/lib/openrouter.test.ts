@@ -1,6 +1,13 @@
 import { generateText } from "ai";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
+import {
+  buildSamChatModel,
+  buildResearchModel,
+  getSamMaxOutputTokens,
+} from "./openrouter";
+
+afterEach(() => vi.unstubAllEnvs());
 
 const completion = () =>
   Response.json({
@@ -12,44 +19,39 @@ const completion = () =>
     ],
   });
 
-// The egress country is cached per module (one lookup per isolate), so each
-// test needs a fresh module to run its own lookup.
-beforeEach(() => {
+async function requestedBody(trace: () => Promise<Response>) {
+  // Each region case needs a fresh copy of the isolate's cached egress country.
   vi.resetModules();
-});
-
-async function requestedModel(trace: () => Promise<Response>) {
   const fetchMock = vi
     .spyOn(globalThis, "fetch")
     .mockImplementationOnce(trace)
     .mockResolvedValueOnce(completion());
-  const { buildChatAgentModel } = await import("./openrouter");
+  const router = await import("./openrouter");
   await generateText({
-    model: buildChatAgentModel({ apiKey: "key" }),
+    model: router.buildSamChatModel({ OPENROUTER_API_KEY: "key" }, "max"),
     prompt: "hi",
   });
-  const body = z
-    .object({ model: z.string() })
-    .parse(JSON.parse(z.string().parse(fetchMock.mock.calls[1]?.[1]?.body)));
-  return body.model;
+  return requestBody(fetchMock, 1);
 }
 
 it("sends OpenAI calls to MiniMax M3 from a country where OpenAI is blocked", async () => {
+  vi.stubEnv("OPENROUTER_SAM_REASONING_EFFORT", "high");
+  vi.stubEnv("OPENROUTER_CACHE_CONTROL", "ephemeral-1h");
   expect(
-    await requestedModel(async () => new Response("colo=HKG\nloc=HK\n")),
-  ).toBe("minimax/minimax-m3");
+    await requestedBody(async () => new Response("colo=HKG\nloc=HK\n")),
+  ).toMatchObject({
+    model: "minimax/minimax-m3",
+    reasoning: { effort: "medium" },
+    cache_control: { type: "ephemeral", ttl: "1h" },
+  });
 });
 
 it("sends requests to a custom base URL without the region lookup", async () => {
   const fetchMock = vi
     .spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(completion());
-  const { buildChatAgentModel } = await import("./openrouter");
   await generateText({
-    model: buildChatAgentModel({
-      apiKey: "key",
-      baseURL: "https://llm.example.com/v1",
-    }),
+    model: buildSamChatModel(stubAccess, "max"),
     prompt: "hi",
   });
   expect(fetchMock).toHaveBeenCalledOnce();
@@ -60,9 +62,118 @@ it("sends requests to a custom base URL without the region lookup", async () => 
 });
 
 it("stays on OpenAI when the country lookup fails", async () => {
-  expect(
-    await requestedModel(async () => {
-      throw new Error("offline");
-    }),
-  ).toBe("openai/gpt-5.6-luna");
+  const body = await requestedBody(async () => {
+    throw new Error("offline");
+  });
+  expect(body).toMatchObject({
+    model: "openai/gpt-5.6-luna",
+    reasoning: { effort: "max" },
+  });
+  expect(body).not.toHaveProperty("cache_control");
 });
+
+const stubAccess = {
+  OPENROUTER_API_KEY: "test",
+  OPENROUTER_BASE_URL: "https://llm.example.com/v1",
+};
+
+function captureCompletion() {
+  return vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(completion());
+}
+
+function requestBody(mock: ReturnType<typeof captureCompletion>, index = 0) {
+  return z
+    .record(z.string(), z.unknown())
+    .parse(JSON.parse(z.string().parse(mock.mock.calls[index]?.[1]?.body)));
+}
+
+it("sends the configured SAM effort and one-hour cache directive", async () => {
+  const mock = captureCompletion();
+  await generateText({
+    model: buildSamChatModel(
+      {
+        ...stubAccess,
+        OPENROUTER_SAM_REASONING_EFFORT: "provider-specific",
+        OPENROUTER_CACHE_CONTROL: "ephemeral-1h",
+      },
+      "max",
+    ),
+    prompt: "hi",
+  });
+  expect(requestBody(mock)).toMatchObject({
+    reasoning: { effort: "provider-specific" },
+    cache_control: { type: "ephemeral", ttl: "1h" },
+  });
+});
+
+it("caches SAM compaction while keeping its low effort", async () => {
+  const mock = captureCompletion();
+  await generateText({
+    model: buildSamChatModel(
+      {
+        ...stubAccess,
+        OPENROUTER_SAM_REASONING_EFFORT: "high",
+        OPENROUTER_CACHE_CONTROL: "ephemeral",
+      },
+      "low",
+    ),
+    prompt: "hi",
+  });
+  const body = requestBody(mock);
+  expect(body.reasoning).toEqual({ effort: "low" });
+  expect(body.cache_control).toEqual({ type: "ephemeral" });
+});
+
+it.each([
+  ["", 16_000],
+  ["32768", 32768],
+  ["none", undefined],
+])(
+  "applies the SAM token setting %j to the request",
+  async (setting, expected) => {
+    const mock = captureCompletion();
+    await generateText({
+      model: buildSamChatModel(stubAccess, "max"),
+      maxOutputTokens: getSamMaxOutputTokens({
+        OPENROUTER_SAM_MAX_TOKENS: setting,
+      }),
+      prompt: "hi",
+    });
+    const body = requestBody(mock);
+    if (expected === undefined) expect(body).not.toHaveProperty("max_tokens");
+    else expect(body.max_tokens).toBe(expected);
+  },
+);
+
+it.each(["0", "-1", "1.5", "500oops", "9007199254740992"])(
+  "rejects invalid SAM token limit %s",
+  (value) => {
+    expect(() =>
+      getSamMaxOutputTokens({ OPENROUTER_SAM_MAX_TOKENS: value }),
+    ).toThrow("OPENROUTER_SAM_MAX_TOKENS");
+  },
+);
+
+it.each([
+  ["", "low"],
+  ["provider-specific", "provider-specific"],
+])(
+  "uses research effort %j independently of SAM",
+  async (setting, expected) => {
+    vi.stubEnv("OPENROUTER_RESEARCH_REASONING_EFFORT", setting);
+    vi.stubEnv("OPENROUTER_SAM_REASONING_EFFORT", "high");
+    vi.stubEnv("OPENROUTER_CACHE_CONTROL", "ephemeral");
+    const mock = captureCompletion();
+    await generateText({
+      model: await buildResearchModel({
+        apiKey: "test",
+        baseURL: stubAccess.OPENROUTER_BASE_URL,
+      }),
+      prompt: "hi",
+    });
+    expect(requestBody(mock)).toMatchObject({
+      reasoning: { effort: expected },
+      cache_control: { type: "ephemeral" },
+    });
+  },
+);

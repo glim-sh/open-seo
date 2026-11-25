@@ -32,7 +32,10 @@ import {
   SamTelemetry,
   type SamTurnStats,
 } from "@/server/features/sam/samTurnTelemetry";
-import { buildSamChatModel } from "@/server/lib/openrouter";
+import {
+  buildSamChatModel,
+  getSamMaxOutputTokens,
+} from "@/server/lib/openrouter";
 import {
   isHostedServerAuthMode,
   usesBetterAuthServer,
@@ -411,13 +414,13 @@ export class SamChatAgent extends Think {
         // SAM runs complex multi-step work in one turn (site-read intake plus
         // a full research chain, multi-competitor sweeps), so the step budget
         // is generous; cost is bounded by per-step metering and the model
-        // stopping on its own. The per-step token budget is shared by
-        // max-effort reasoning and the visible reply, so it stays well above
+        // stopping on its own. The default per-step token budget is shared by
+        // reasoning and the visible reply, so it stays well above
         // measured reasoning use (~3k tokens — a tight cap lets reasoning eat
         // the reply, issue #161) but below the 32k that, with 48 steps, let a
         // single turn outgrow the Durable Object memory limit.
         maxSteps: 40,
-        maxOutputTokens: 16_000,
+        maxOutputTokens: getSamMaxOutputTokens(this.env),
       };
     });
   }
