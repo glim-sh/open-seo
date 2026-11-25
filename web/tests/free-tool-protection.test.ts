@@ -7,6 +7,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 import {
   chargeToolBudget,
+  fetchDataforseoTask,
   guardToolRequest,
   readToolBody,
 } from "../src/lib/free-tools/server";
@@ -257,6 +258,22 @@ describe("every free API protects cache hits and provider calls", () => {
 });
 
 describe("keyword discovery provider contracts", () => {
+  it("sends free tool requests to the configured DataForSEO mirror", async () => {
+    bindings.value.DATAFORSEO_BASE_URL = "https://mirror.example/seo/";
+    fetchMock.mockResolvedValue(
+      Response.json({ tasks: [{ status_code: 20000, result: [] }] }),
+    );
+
+    await fetchDataforseoTask(
+      "/v3/backlinks/summary/live",
+      { target: "example.com" },
+      "test-key",
+    );
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://mirror.example/seo/v3/backlinks/summary/live",
+    );
+  });
+
   const cases = [
     {
       slug: "competitor-keyword-finder",

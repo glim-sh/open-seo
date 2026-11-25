@@ -62,12 +62,14 @@ docker compose up -d --force-recreate init web crawl-gateway
 | Variable                                   | Purpose                                                                                                                    |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `DATAFORSEO_API_KEY`                       | Base64-encoded `login:password`; keyword, backlink, rank and site data                                                     |
+| `DATAFORSEO_BASE_URL`                      | Optional base URL for calls using `DATAFORSEO_API_KEY` (default `https://api.dataforseo.com`)                              |
 | `TREG_API_TOKEN`                           | Optional, instead of `DATAFORSEO_API_KEY`: the same data, bought per call through treg (see the DataForSEO key guide)      |
 | `OPENROUTER_API_KEY`                       | SAM conversations, website research and summaries                                                                          |
 | `OPENROUTER_BASE_URL`                      | Optional base URL of another OpenAI-compatible server (vLLM, LiteLLM, Ollama); set `OPENROUTER_MODEL` to a model it serves |
 | `OPENROUTER_MODEL`                         | Optional model override                                                                                                    |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Search Console and Analytics linking with your own Google OAuth app                                               |
 | `CONTEXT_API_KEY`                          | Optional JavaScript rendering for site audits                                                                              |
+| `CONTEXT_BASE_URL`                         | Optional base URL for calls using `CONTEXT_API_KEY` (default `https://api.context.dev`)                                    |
 | `GOOGLE_MAPS_API_KEY`                      | Optional map for Local SEO; see [`GOOGLE_MAPS_SETUP.md`](./GOOGLE_MAPS_SETUP.md)                                           |
 | `CRAWLER_ACCESS_SECRET`                    | Optional, 32+ random characters; encrypts saved Shopify crawler signatures                                                 |
 

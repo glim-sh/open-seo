@@ -17,6 +17,12 @@ Set the value as `DATAFORSEO_API_KEY`:
 - **Cloudflare self-hosting:** in `.env.selfhost` (see [`SELF_HOSTING_CLOUDFLARE.md`](./SELF_HOSTING_CLOUDFLARE.md)). Legacy button/Wrangler deployments: as a Worker secret in the dashboard under `Settings` -> `Variables & Secrets`.
 - **Local development:** in `.env.local` (see [`LOCAL_DEVELOPMENT.md`](./LOCAL_DEVELOPMENT.md)).
 
+## Use an API mirror
+
+Set `DATAFORSEO_BASE_URL` alongside your key to send API calls to a compatible mirror. The default is `https://api.dataforseo.com`. Use an absolute HTTP or HTTPS URL, including any path prefix your mirror needs. OpenSEO appends `/v3/...` and sends `DATAFORSEO_API_KEY` to that address.
+
+With this setting, saving a rank tracker skips the location check against DataForSEO's sandbox. Calls authenticated with `TREG_API_TOKEN` still go to [treg](https://treg.to).
+
 ## No DataForSEO account? Use treg
 
 [treg](https://treg.to) is a third-party reseller, unaffiliated with OpenSEO. It sells DataForSEO calls one at a time from a prepaid balance, at DataForSEO's own rates, so you can skip the DataForSEO signup and its $50 minimum top-up. New treg accounts include $1 of free credit.

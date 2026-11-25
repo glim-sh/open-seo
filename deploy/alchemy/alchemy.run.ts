@@ -369,6 +369,7 @@ const dataEnv = {
   // and OPENSEO_OPERATOR_SECRET are stage-dependent and set in the stack body
   // below, which also replaces an unset BETTER_AUTH_SECRET in password mode.
   DATAFORSEO_API_KEY: optionalSecret("DATAFORSEO_API_KEY"),
+  DATAFORSEO_BASE_URL: optionalVar("DATAFORSEO_BASE_URL"),
   TREG_API_TOKEN: optionalSecret("TREG_API_TOKEN"),
   BYPASS_EMAIL_VERIFICATION: optionalVar("BYPASS_EMAIL_VERIFICATION"),
   BETTER_AUTH_SECRET: optionalSecret("BETTER_AUTH_SECRET"),
@@ -384,6 +385,7 @@ const dataEnv = {
   OPENROUTER_BASE_URL: optionalVar("OPENROUTER_BASE_URL"),
   OPENROUTER_MODEL: optionalVar("OPENROUTER_MODEL"),
   CONTEXT_API_KEY: optionalSecret("CONTEXT_API_KEY"),
+  CONTEXT_BASE_URL: optionalVar("CONTEXT_BASE_URL"),
   AUTUMN_SECRET_KEY: optionalSecret("AUTUMN_SECRET_KEY"),
   AUTUMN_WEBHOOK_SECRET: optionalSecret("AUTUMN_WEBHOOK_SECRET"),
   DUB_API_KEY: optionalSecret("DUB_API_KEY"),
@@ -577,7 +579,9 @@ export default Alchemy.Stack(
         CRAWLER_ACCESS_SECRET: dataEnv.CRAWLER_ACCESS_SECRET,
         WEB_BOT_AUTH_JWK: dataEnv.WEB_BOT_AUTH_JWK,
         CONTEXT_API_KEY: dataEnv.CONTEXT_API_KEY,
+        CONTEXT_BASE_URL: dataEnv.CONTEXT_BASE_URL,
         DATAFORSEO_API_KEY: dataEnv.DATAFORSEO_API_KEY,
+        DATAFORSEO_BASE_URL: dataEnv.DATAFORSEO_BASE_URL,
         TREG_API_TOKEN: dataEnv.TREG_API_TOKEN,
         AUTUMN_SECRET_KEY: dataEnv.AUTUMN_SECRET_KEY,
         POSTHOG_PUBLIC_KEY: dataEnv.POSTHOG_PUBLIC_KEY,

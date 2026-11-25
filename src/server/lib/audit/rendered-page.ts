@@ -7,6 +7,7 @@ import {
   CLOUDFLARE_RENDER_TIMEOUT_MS,
   type RenderUsage,
 } from "@/shared/audit-rendering";
+import { getProviderBaseUrl } from "@/server/lib/provider-access";
 import { classifyFetch } from "./classify-fetch";
 import { MAX_HTML_BYTES, readTextUpTo, truncateToBytes } from "./html-response";
 import { isCrawlableUrl } from "./url-policy";
@@ -121,7 +122,9 @@ async function renderWithContext(
   credits: number;
   httpStatus: number | null;
 }> {
-  const endpoint = new URL("https://api.context.dev/v1/web/scrape/html");
+  const endpoint = new URL(
+    `${await getProviderBaseUrl("CONTEXT_BASE_URL")}/v1/web/scrape/html`,
+  );
   endpoint.search = new URLSearchParams({
     url,
     maxAgeMs: "0",

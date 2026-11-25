@@ -65,6 +65,7 @@ Replace `open-seo` with your bucket name if you changed it.
 **Login fails or OpenSEO doesn't load.** Re-check, on your Worker under `Settings`:
 
 - `Domains & Routes`: `Cloudflare Access` is enabled for the `workers.dev` route.
+- If you use API mirrors, set `DATAFORSEO_BASE_URL` and/or `CONTEXT_BASE_URL` on both the app and the `open-seo-audit` Worker.
 - `Variables & Secrets`: `TEAM_DOMAIN` (for example `https://your-team.cloudflareaccess.com`), `POLICY_AUD` (the Access application audience tag), and `DATAFORSEO_API_KEY` are set. The `open-seo-audit` worker needs `DATAFORSEO_API_KEY` too.
 - Manual Wrangler deployments: the binding IDs in `wrangler.jsonc` match your resources.
 

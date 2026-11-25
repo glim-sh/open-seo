@@ -8,6 +8,10 @@ import { isEveryAppAuthMode } from "@/lib/auth-mode";
 import { AppError } from "@/server/lib/errors";
 import { createTregDataforseoFetch } from "@/server/lib/dataforseo/treg";
 import { gatewayCallFor } from "@/server/lib/gateway-attribution";
+import {
+  providerBaseUrl,
+  type ProviderBaseUrlSetting,
+} from "@/shared/provider-base-url";
 import { DATAFORSEO_NOT_SET_UP_MESSAGE } from "@/shared/gateway-setup-messages";
 import {
   getOptionalEnvValue,
@@ -24,6 +28,10 @@ import {
 // own (docs/maintainers/every-app.md). Each call says whose it is: the
 // request's identity while serving one, else the organization the work is
 // for (gateway-attribution.ts).
+
+export async function getProviderBaseUrl(setting: ProviderBaseUrlSetting) {
+  return providerBaseUrl(setting, await getOptionalEnvValue(setting));
+}
 
 async function isBehindEveryAppGateway(): Promise<boolean> {
   return isEveryAppAuthMode(await getOptionalEnvValue("AUTH_MODE"));
@@ -70,7 +78,12 @@ async function gatewayFetch(provider: GatewayProvider) {
 async function gatewayDataforseoFetch(): Promise<typeof fetch | null> {
   const direct = await gatewayFetch("dataforseo");
   const treg = await gatewayFetch("treg");
-  const viaTreg = treg && createTregDataforseoFetch(treg);
+  const viaTreg =
+    treg &&
+    createTregDataforseoFetch(
+      treg,
+      await getProviderBaseUrl("DATAFORSEO_BASE_URL"),
+    );
   if (!direct || !viaTreg) return direct ?? viaTreg;
   // Over the binding both always exist, and only the gateway knows which
   // key it holds: a gateway without DataForSEO's refuses the call before
@@ -110,7 +123,10 @@ export async function getDataforseoFetch(): Promise<typeof fetch> {
     // No DataForSEO account of its own: buy the calls through treg instead.
     const tregKey = await getOptionalEnvValue("TREG_API_TOKEN");
     if (tregKey) {
-      return createTregDataforseoFetch(withHeader("X-Treg-Token", tregKey));
+      return createTregDataforseoFetch(
+        withHeader("X-Treg-Token", tregKey),
+        await getProviderBaseUrl("DATAFORSEO_BASE_URL"),
+      );
     }
   }
   const apiKey = await getRequiredEnvValue("DATAFORSEO_API_KEY");

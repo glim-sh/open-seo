@@ -51,6 +51,8 @@ Copy the template and set `DATAFORSEO_API_KEY` (or `TREG_API_TOKEN`); everything
 cp deploy/.env.selfhost.example .env.selfhost
 ```
 
+If you use an API mirror, set `DATAFORSEO_BASE_URL` or `CONTEXT_BASE_URL` alongside its API key. Include the mirror's path prefix. OpenSEO appends the endpoint path, such as `/v3/serp/google/locations/us` or `/v1/web/scrape/html`.
+
 ## 4) Deploy
 
 ```bash

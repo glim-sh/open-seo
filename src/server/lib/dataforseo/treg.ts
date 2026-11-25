@@ -6,21 +6,21 @@ import { AppError } from "@/server/lib/errors";
 // request and response bodies unchanged, so only the base URL and the auth
 // header change.
 
-const DATAFORSEO_BASE = "https://api.dataforseo.com/v3/";
 const TREG_DATAFORSEO_BASE = "https://treg.to/call/dataforseo/";
 
 /** The treg URL for a DataForSEO URL. */
-function tregUrlFor(dataforseoUrl: string): string {
+function tregUrlFor(dataforseoUrl: string, baseUrl: string): string {
+  const prefix = `${baseUrl}/v3/`;
   // The free validation sandbox has no treg twin, and sending its probe to
   // the live API would bill it.
-  if (!dataforseoUrl.startsWith(DATAFORSEO_BASE)) {
+  if (!dataforseoUrl.startsWith(prefix)) {
     throw new AppError(
       "DATAFORSEO_AUTH_FAILED",
       `treg doesn't serve ${new URL(dataforseoUrl).host}. Set DATAFORSEO_API_KEY to use it.`,
       { provider: "treg" },
     );
   }
-  return TREG_DATAFORSEO_BASE + dataforseoUrl.slice(DATAFORSEO_BASE.length);
+  return TREG_DATAFORSEO_BASE + dataforseoUrl.slice(prefix.length);
 }
 
 // The refusals treg makes itself that retrying can't fix. Its 429 and 5xx
@@ -75,6 +75,7 @@ async function tregRefusalError(response: Response, path: string) {
  */
 export function createTregDataforseoFetch(
   tregFetch: typeof fetch,
+  baseUrl: string,
 ): typeof fetch {
   return async (input, init) => {
     const rawUrl =
@@ -83,7 +84,7 @@ export function createTregDataforseoFetch(
         : input instanceof URL
           ? input.href
           : input.url;
-    const response = await tregFetch(tregUrlFor(rawUrl), init);
+    const response = await tregFetch(tregUrlFor(rawUrl, baseUrl), init);
     // treg marks its own refusals; without the header the status and body
     // are DataForSEO's (a 402 there is treg's DataForSEO account, not yours).
     // Decide from the status, not the body: a body read here can't be read

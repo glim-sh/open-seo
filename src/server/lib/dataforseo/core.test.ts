@@ -1,16 +1,20 @@
 import { gzipSync } from "node:zlib";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/lib/runtime-env", () => ({
-  // AUTH_MODE unset: the deployment holds the DataForSEO key.
-  getOptionalEnvValue: vi.fn(async () => undefined),
-  getRequiredEnvValue: vi.fn(async () => "encoded-credentials"),
-}));
+import {
+  dataforseoGet,
+  dataforseoPost,
+  dataforseoPostResponse,
+} from "@/server/lib/dataforseo/core";
+import { assertSerpLocationNameAccepted } from "@/server/lib/dataforseo/serp-location-validate";
 
-import { dataforseoPost } from "@/server/lib/dataforseo/core";
+beforeEach(() => {
+  vi.stubEnv("DATAFORSEO_API_KEY", "encoded-credentials");
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("DataForSEO transport", () => {
@@ -32,6 +36,56 @@ describe("DataForSEO transport", () => {
       "Basic encoded-credentials",
     );
     expect(new Headers(init?.headers).get("Accept-Encoding")).toBe("gzip");
+  });
+
+  it("uses the configured base path for parsed and streaming requests", async () => {
+    vi.stubEnv("DATAFORSEO_BASE_URL", "http://mirror.example/providers/seo///");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await dataforseoGet("/v3/serp/google/locations/us");
+    await dataforseoPostResponse("/v3/on_page/lighthouse/live/json", []);
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://mirror.example/providers/seo/v3/serp/google/locations/us",
+      "http://mirror.example/providers/seo/v3/on_page/lighthouse/live/json",
+    ]);
+  });
+
+  it.each([
+    "/mirror",
+    "ftp://mirror.example",
+    "https://mirror.example/?key=value",
+  ])(
+    "rejects an invalid DATAFORSEO_BASE_URL (%s) before sending credentials",
+    async (base) => {
+      vi.stubEnv("DATAFORSEO_BASE_URL", base);
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json({}));
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(
+        dataforseoGet("/v3/serp/google/locations/us"),
+      ).rejects.toThrow("DATAFORSEO_BASE_URL");
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("skips sandbox location validation when the deployment uses a custom base", async () => {
+    vi.stubEnv("DATAFORSEO_BASE_URL", "https://mirror.example");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await assertSerpLocationNameAccepted({
+      locationName: "Lisbon",
+      languageCode: "en",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   // The Docker edition's runtime hands the body over still gzipped because we

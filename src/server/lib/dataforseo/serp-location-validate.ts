@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { dataforseoPost } from "@/server/lib/dataforseo/core";
 import { invalidFieldName } from "@/server/lib/dataforseo/envelope";
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { AppError } from "@/server/lib/errors";
 
 const DATAFORSEO_SANDBOX_URL = "https://sandbox.dataforseo.com";
@@ -17,11 +18,14 @@ const sandboxTaskSchema = z.object({
  * request fields exactly like production and costs nothing, so a 20000 here
  * means the live endpoint will take the name too.
  */
-export function probeSerpLocation(
+export async function probeSerpLocation(
   locationName: string,
   languageCode: string,
   options: { signal?: AbortSignal } = {},
 ) {
+  // A mirror's credentials must never reach the vendor sandbox. Probing the
+  // mirror's live endpoint instead could charge for saving a tracker.
+  if (await getOptionalEnvValue("DATAFORSEO_BASE_URL")) return null;
   return dataforseoPost(
     "/v3/serp/google/organic/live/advanced",
     [
@@ -50,7 +54,7 @@ export async function assertSerpLocationNameAccepted(input: {
   languageCode: string;
   countryCode?: string;
 }): Promise<void> {
-  let task: z.infer<typeof sandboxTaskSchema>;
+  let task: z.infer<typeof sandboxTaskSchema> | null;
   try {
     task = await probeSerpLocation(input.locationName, input.languageCode, {
       signal: AbortSignal.timeout(SANDBOX_TIMEOUT_MS),
@@ -62,7 +66,7 @@ export async function assertSerpLocationNameAccepted(input: {
     return;
   }
 
-  if (task.status_code === 20000) return;
+  if (!task || task.status_code === 20000) return;
   // Only 4xxxx is "your request is wrong"; anything else is the provider's
   // problem and must not block the save.
   if (task.status_code < 40000 || task.status_code >= 50000) {

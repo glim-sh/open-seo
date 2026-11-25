@@ -11,6 +11,7 @@ declare namespace Cloudflare {
     // Context.dev key: the rendering fallback when Browser Run fails or is
     // blocked, and the only renderer on Docker.
     CONTEXT_API_KEY?: string;
+    CONTEXT_BASE_URL?: string;
     OAUTH_KV: KVNamespace;
 
     // Durable Object backing the SAM in-app agent (see wrangler.jsonc).
@@ -113,6 +114,7 @@ declare namespace Cloudflare {
 
     // DataForSEO API Basic auth value (base64 of login:password)
     DATAFORSEO_API_KEY: string;
+    DATAFORSEO_BASE_URL?: string;
     // Alternative to DATAFORSEO_API_KEY: buy DataForSEO calls through treg.to.
     TREG_API_TOKEN?: string;
     LOCAL_RANK_WORKFLOW: Workflow<

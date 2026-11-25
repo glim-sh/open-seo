@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { probeSerpLocation } from "@/server/lib/dataforseo/serp-location-validate";
+import { getProviderBaseUrl } from "@/server/lib/provider-access";
 import { requiredEnv } from "./cli-utils";
 import type { SerpRegistryLocation } from "./serp-location-match";
 
@@ -38,7 +39,7 @@ export async function fetchRegistry(
     ) as SerpRegistryLocation[];
   }
   const response = await fetch(
-    `https://api.dataforseo.com/v3/serp/google/locations/${encodeURIComponent(iso)}`,
+    `${await getProviderBaseUrl("DATAFORSEO_BASE_URL")}/v3/serp/google/locations/${encodeURIComponent(iso)}`,
     {
       headers: { Authorization: `Basic ${requiredEnv("DATAFORSEO_API_KEY")}` },
     },
@@ -75,14 +76,20 @@ export async function sandboxAccepts(
   languageCode: string,
 ): Promise<{ ok: boolean; message: string }> {
   for (let attempt = 1; ; attempt++) {
+    let task;
     try {
-      const task = await probeSerpLocation(locationName, languageCode, {
+      task = await probeSerpLocation(locationName, languageCode, {
         signal: AbortSignal.timeout(30_000),
       });
-      return { ok: task.status_code === 20000, message: task.status_message };
     } catch (error) {
       if (attempt >= 4) throw error;
       await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+      continue;
     }
+    if (!task)
+      throw new Error(
+        "Sandbox verification is unavailable with DATAFORSEO_BASE_URL set.",
+      );
+    return { ok: task.status_code === 20000, message: task.status_message };
   }
 }

@@ -49,8 +49,10 @@ await cp("/opt/openseo", `${root}/app`, { recursive: true });
 const config = JSON.parse(await readFile(`${root}/app/wrangler.json`, "utf8"));
 const allowed = [
   "DATAFORSEO_API_KEY",
+  "DATAFORSEO_BASE_URL",
   "TREG_API_TOKEN",
   "CONTEXT_API_KEY",
+  "CONTEXT_BASE_URL",
   "OPENROUTER_API_KEY",
   "OPENROUTER_BASE_URL",
   "OPENROUTER_MODEL",

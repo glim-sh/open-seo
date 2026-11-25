@@ -2,7 +2,10 @@ import { gatewayRefusal } from "@every-app/sdk/server";
 import { AppError } from "@/server/lib/errors";
 import type { ErrorCode } from "@/shared/error-codes";
 import { DATAFORSEO_NOT_SET_UP_MESSAGE } from "@/shared/gateway-setup-messages";
-import { getDataforseoFetch } from "@/server/lib/provider-access";
+import {
+  getDataforseoFetch,
+  getProviderBaseUrl,
+} from "@/server/lib/provider-access";
 // No runtime cycle: envelope.ts imports only the DataforseoErrorClassifier
 // type from here.
 import {
@@ -11,7 +14,6 @@ import {
   type DataforseoTaskLike,
 } from "@/server/lib/dataforseo/envelope";
 
-const API_BASE = "https://api.dataforseo.com";
 const MAX_DATAFORSEO_ERROR_PAYLOAD_LENGTH = 1600;
 // Safety ceiling on any live call (Lighthouse is the slowest, ~tens of seconds).
 const DATAFORSEO_REQUEST_TIMEOUT_MS = 60_000;
@@ -242,7 +244,7 @@ async function requestDataforseo<TTask extends DataforseoTaskLike>(
     options.classify,
     options.maxServerErrorRetries,
   );
-  const url = `${options.baseUrl ?? API_BASE}${path}`;
+  const url = `${options.baseUrl ?? (await getProviderBaseUrl("DATAFORSEO_BASE_URL"))}${path}`;
   const response = await doFetch(url, {
     method,
     headers: {
@@ -291,7 +293,7 @@ export function dataforseoPost<
  * gates its multi-MB body reads behind a parse lock in the audit worker, and
  * passes its own `signal` so the timeout can be cleared once headers arrive.
  */
-export function dataforseoPostResponse(
+export async function dataforseoPostResponse(
   path: string,
   tasks: unknown[],
   options: DataforseoRequestOptions & { signal?: AbortSignal } = {},
@@ -300,7 +302,7 @@ export function dataforseoPostResponse(
     options.classify,
     options.maxServerErrorRetries,
   );
-  return doFetch(`${API_BASE}${path}`, {
+  return doFetch(`${await getProviderBaseUrl("DATAFORSEO_BASE_URL")}${path}`, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(tasks),

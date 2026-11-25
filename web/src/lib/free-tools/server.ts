@@ -6,8 +6,7 @@ import type {
   BudgetReservation,
 } from "@/lib/free-tools/budget";
 import type { FreeToolSlug } from "@/lib/free-tools/tool-pages";
-
-const DATAFORSEO_BASE = "https://api.dataforseo.com";
+import { providerBaseUrl } from "../../../../src/shared/provider-base-url";
 
 /** Every free tool shares the same per-visitor rate limiter. */
 type RateLimiter = {
@@ -16,6 +15,7 @@ type RateLimiter = {
 
 type Bindings = {
   DATAFORSEO_API_KEY?: string;
+  DATAFORSEO_BASE_URL?: string;
   TURNSTILE_SECRET_KEY?: string;
   BACKLINK_CHECK_RATE_LIMIT?: RateLimiter;
   FREE_TOOL_BUDGET?: DurableObjectNamespace<FreeToolBudget>;
@@ -360,7 +360,11 @@ export async function fetchDataforseoTask(
   payload: Record<string, unknown>,
   apiKey: string,
 ) {
-  const response = await fetch(`${DATAFORSEO_BASE}${path}`, {
+  const base = providerBaseUrl(
+    "DATAFORSEO_BASE_URL",
+    bindings().DATAFORSEO_BASE_URL,
+  );
+  const response = await fetch(`${base}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

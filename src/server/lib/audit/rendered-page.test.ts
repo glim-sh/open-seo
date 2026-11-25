@@ -51,6 +51,8 @@ function render(
   return { page, usage };
 }
 
+afterEach(() => vi.unstubAllEnvs());
+
 beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
 });
@@ -107,6 +109,21 @@ describe("rendered page providers", () => {
       expect(new Headers(request?.headers).has("authorization")).toBe(false);
     },
   );
+
+  it("scrapes through the configured Context base path", async () => {
+    vi.stubEnv("CONTEXT_BASE_URL", "https://mirror.example/providers/context/");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(context());
+    await render({ contextFetch }).page;
+
+    const [endpoint] = fetchMock.mock.calls[0];
+    if (!(endpoint instanceof URL)) throw new Error("Expected a URL request");
+    expect(endpoint.origin + endpoint.pathname).toBe(
+      "https://mirror.example/providers/context/v1/web/scrape/html",
+    );
+    expect(endpoint.searchParams.get("url")).toBe(url);
+  });
 
   it("does not mistake a background challenge script for a blocked page", async () => {
     browser.quickAction.mockResolvedValue(
@@ -226,8 +243,6 @@ describe("rendered page providers", () => {
 });
 
 describe("rendering availability", () => {
-  afterEach(() => vi.unstubAllEnvs());
-
   it("exists when a browser is bound or a Context key is set, whatever the auth mode", async () => {
     // A legacy Wrangler install runs cloudflare_access with no browser.
     vi.stubEnv("AUTH_MODE", "cloudflare_access");
