@@ -14,20 +14,17 @@ permissions:
 
 jobs:
   docker:
-    if: github.repository == 'every-app/open-seo'
+    if: >-
+      github.repository == 'every-app/open-seo' ||
+      (github.repository == 'glim-sh/open-seo' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          # The original single-container image. Existing installations
-          # auto-update from :latest, so it must stay this image.
-          - image: ghcr.io/every-app/open-seo
-            file: deploy/docker/Dockerfile
-          # The standalone edition (deploy/standalone/compose.yaml): a
-          # multi-container stack whose data format differs, so it is never
-          # published under the name above.
-          - image: ghcr.io/every-app/open-seo-standalone
-            file: deploy/standalone/Dockerfile
+        repository: ["${{ github.repository }}"]
+        edition: [docker, standalone]
+        exclude:
+          - repository: glim-sh/open-seo
+            edition: docker
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -49,7 +46,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ${{ matrix.image }}
+          # Existing single-container installs pull open-seo:latest. The
+          # standalone stack has a different data format and its own image.
+          images: ghcr.io/${{ matrix.repository }}${{ matrix.edition == 'standalone' && '-standalone' || '' }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -63,7 +62,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
-          file: ${{ matrix.file }}
+          file: deploy/${{ matrix.edition }}/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
